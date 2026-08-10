@@ -2,13 +2,6 @@
 
 import { useState, useCallback, useRef } from "react"
 import type { ChatMessage, ToolCallInfo } from "@/types"
-import { BASE_PATH } from "@/lib/base-path"
-import {
-  AGENT_API_BASE_URL,
-  AGENT_API_KEY,
-  DEFAULT_AGENT_ID,
-  isDirectAgentApi,
-} from "@/lib/agent-api"
 
 interface UseAgentChatOptions {
   initialGreeting?: ChatMessage
@@ -115,48 +108,15 @@ export function useAgentChat(opts?: UseAgentChatOptions): UseAgentChatReturn {
 
       try {
         const currentSessionId = sessionIdRef.current
-
-        // ── Build the request ──
-        let fetchUrl: string
-        let fetchOptions: RequestInit
-
-        if (isDirectAgentApi) {
-          // Direct mode: call Agent API from browser (for static hosting like GitHub Pages)
-          const agentId = DEFAULT_AGENT_ID
-          fetchUrl = `${AGENT_API_BASE_URL}/api/v1/agents/${agentId}/runs`
-
-          const form = new FormData()
-          form.append("message", text)
-          form.append("stream", "true")
-          form.append("thinking_enabled", "true")
-          if (currentSessionId) {
-            form.append("session_id", currentSessionId)
-          }
-
-          fetchOptions = {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${AGENT_API_KEY}`,
-              "X-User-ID": "kscc-user",
-            },
-            body: form,
-            signal: controller.signal,
-          }
-        } else {
-          // Proxy mode: call BFF /api/chat (local dev with Node.js server)
-          fetchUrl = `${BASE_PATH}/api/chat`
-          fetchOptions = {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              message: text,
-              session_id: currentSessionId || undefined,
-            }),
-            signal: controller.signal,
-          }
-        }
-
-        const res = await fetch(fetchUrl, fetchOptions)
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: text,
+            session_id: currentSessionId || undefined,
+          }),
+          signal: controller.signal,
+        })
 
         if (!res.ok) {
           let errText = `请求失败 (${res.status})`
